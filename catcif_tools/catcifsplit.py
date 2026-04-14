@@ -28,7 +28,7 @@ def _suffix_gen():
 
 
 def _outpath(out_dir, prefix, suffix):
-    return os.path.join(out_dir, prefix + suffix)
+    return os.path.join(out_dir, prefix + suffix + '.catcif')
 
 
 # ---------------------------------------------------------------------------
