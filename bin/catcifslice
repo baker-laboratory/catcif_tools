@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+"""catcifslice — extract a subset of structures from a .catcif file.
+
+Can be invoked three ways:
+  1. pip install catcif-tools  →  catcifslice (entry point wrapper in venv bin/)
+  2. export PATH=".../catcif_tools/bin:$PATH"  →  catcifslice
+  3. /full/path/to/catcif_tools/bin/catcifslice
+"""
+import sys
+import os
+
+try:
+    from catcif_tools.catcifslice import main
+except ImportError:
+    # Not pip-installed. Insert the project root (one level above bin/)
+    # so that the catcif_tools/ package directory is discoverable.
+    _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, _project_root)
+    from catcif_tools.catcifslice import main
+
+main()

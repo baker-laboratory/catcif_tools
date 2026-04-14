@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+"""catcifls — list tags in a .catcif file.
+
+Can be invoked three ways:
+  1. pip install catcif-tools  →  catcifls (entry point wrapper in venv bin/)
+  2. export PATH=".../catcif_tools/bin:$PATH"  →  catcifls
+  3. /full/path/to/catcif_tools/bin/catcifls
+"""
+import sys
+import os
+
+try:
+    from catcif_tools.catcifls import main
+except ImportError:
+    # Not pip-installed. Insert the project root (one level above bin/)
+    # so that the catcif_tools/ package directory is discoverable.
+    _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, _project_root)
+    from catcif_tools.catcifls import main
+
+main()

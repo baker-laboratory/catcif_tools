@@ -1,0 +1,29 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "catcif-tools"
+version = "0.1.0"
+description = "Tools for working with concatenated CIF files (.catcif)"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [{name = "Brian Coventry", email = "bcov@uw.edu"}]
+
+[project.optional-dependencies]
+pdb = ["biopython"]
+
+# pip install creates wrapper scripts for these in the venv's bin/.
+# Standalone scripts in bin/ also work when that folder is on PATH.
+[project.scripts]
+catcifls = "catcif_tools.catcifls:main"
+catcifslice = "catcif_tools.catcifslice:main"
+catcifextract = "catcif_tools.catcifextract:main"
+catciffromfiles = "catcif_tools.catciffromfiles:main"
+catcifscorefile = "catcif_tools.catcifscorefile:main"
+catcifrename = "catcif_tools.catcifrename:main"
+catcifsequence = "catcif_tools.catcifsequence:main"
+catcifsplit = "catcif_tools.catcifsplit:main"
