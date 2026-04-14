@@ -157,16 +157,22 @@ def _collect_and_resolve(opts, prog):
     return resolved
 
 
-def _iter_structures(resolved, opts):
+def _iter_structures(resolved, opts, passthrough_gz=False):
     """
-    Yield (canonical_tag, structure) in the order determined by opts.e.
+    Yield (canonical_tag, data) in the order determined by opts.e.
 
     With -e: input order, one get_structure() call per tag.
     Without -e: file order, get_structures() called once per catcif file.
+
+    When passthrough_gz is True, structures that are stored compressed and need
+    no rename are yielded as raw gzip bytes (bytes).  Structures that are plain
+    or need a rename are yielded as str.  The caller checks isinstance(data, bytes).
     """
     if getattr(opts, 'e', False):
         for orig_path, canonical_tag, _ in resolved:
-            yield canonical_tag, get_structure(canonical_tag, catcif_file=orig_path)
+            yield canonical_tag, get_structure(
+                canonical_tag, catcif_file=orig_path,
+                passthrough_gz=passthrough_gz)
     else:
         file_order = []
         by_file = defaultdict(list)
@@ -181,7 +187,9 @@ def _iter_structures(resolved, opts):
             tags_for_file = sorted(by_file[rp], key=lambda x: x[0])
             canonical_tags = [t for _, t in tags_for_file]
             for canonical_tag, structure in zip(
-                    canonical_tags, get_structures(canonical_tags, catcif_file=orig_path)):
+                    canonical_tags,
+                    get_structures(canonical_tags, catcif_file=orig_path,
+                                   passthrough_gz=passthrough_gz)):
                 yield canonical_tag, structure
 
 
@@ -206,8 +214,11 @@ def main():
         parser.print_help(sys.stderr)
         sys.exit(1)
     if opts.z:
-        for _, structure in _iter_structures(resolved, opts):
-            sys.stdout.buffer.write(compress_structure(structure))
+        for _, data in _iter_structures(resolved, opts, passthrough_gz=True):
+            if isinstance(data, bytes):
+                sys.stdout.buffer.write(data)
+            else:
+                sys.stdout.buffer.write(compress_structure(data))
             sys.stdout.buffer.flush()
     else:
         for _, structure in _iter_structures(resolved, opts):

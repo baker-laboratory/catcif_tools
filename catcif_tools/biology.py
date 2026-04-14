@@ -12,71 +12,119 @@ _CANONICAL_3TO1 = {
     'SER': 'S', 'THR': 'T', 'TRP': 'W', 'TYR': 'Y', 'VAL': 'V',
 }
 
-
 def get_sequence(structure):
     """
     Return the 1-letter amino-acid sequence for each chain in a CIF structure.
 
-    A new chain is started whenever ``label_asym_id`` (chain ID) or
-    ``label_entity_id`` changes relative to the previous atom row.  A gap
-    in residue numbering within the same chain ID and entity ID is treated as
-    a chain break in the structure but NOT as a new chain here — the sequence
-    is kept contiguous.
+    Fast pure-Python implementation that parses the CIF text directly without
+    biopython. Only the ``_atom_site`` loop is scanned; all other categories
+    are skipped entirely. Each data row is expected to occupy a single line
+    (true for all standard mmCIF files produced by structure-prediction tools
+    and the PDB). Rows with whitespace-containing quoted values in earlier
+    columns are skipped gracefully rather than crashing.
 
-    Residues outside the canonical 20 amino acids are represented as ``X``.
-    Atoms with ``label_seq_id == '.'`` (typically solvent) are skipped.
+    Signifcantly faster than biopython
 
-    Parameters
-    ----------
-    structure : str
-        CIF text for a single structure.
-
-    Returns
-    -------
-    list of dict
-        Each dict has keys:
-          ``chain_id``  — ``label_asym_id`` value
-          ``entity_id`` — ``label_entity_id`` value
-          ``sequence``  — 1-letter sequence string
-
-    Raises
-    ------
-    ImportError
-        If biopython is not installed.
+    Returns the same structure as :func:`get_sequence`.
     """
+    lines = structure.splitlines()
+    n = len(lines)
+    i = 0
+
+    # ── 1. Find the loop_ that opens the _atom_site category ─────────────────
+    while i < n:
+        if lines[i].strip() == 'loop_':
+            j = i + 1
+            while j < n and not lines[j].strip():
+                j += 1
+            if j < n and lines[j].strip().startswith('_atom_site.'):
+                i = j   # start collecting headers from here
+                break
+        i += 1
+    else:
+        return []
+
+    # ── 2. Collect column headers ─────────────────────────────────────────────
+    col_names = []
+    while i < n:
+        stripped = lines[i].strip()
+        if stripped.startswith('_atom_site.'):
+            col_names.append(stripped)
+            i += 1
+        elif not stripped or stripped.startswith('#'):
+            i += 1
+        else:
+            break   # first data row
+
+    if not col_names:
+        return []
+
+    # ── 3. Locate the four target column indices ──────────────────────────────
+    col_map = {name: idx for idx, name in enumerate(col_names)}
     try:
-        from Bio.PDB.MMCIF2Dict import MMCIF2Dict
-    except ImportError:
-        raise ImportError(
-            "biopython is required for get_sequence: pip install biopython"
-        )
-    import io
+        idx_entity = col_map['_atom_site.label_entity_id']
+        idx_chain  = col_map['_atom_site.label_asym_id']
+        idx_comp   = col_map['_atom_site.label_comp_id']
+        idx_seq    = col_map['_atom_site.label_seq_id']
+    except KeyError:
+        return []
 
-    mmcif_dict = MMCIF2Dict(io.StringIO(structure))
+    ncols = len(col_names)
 
-    entity_ids = mmcif_dict.get('_atom_site.label_entity_id', [])
-    chain_ids  = mmcif_dict.get('_atom_site.label_asym_id',   [])
-    comp_ids   = mmcif_dict.get('_atom_site.label_comp_id',   [])
-    seq_ids    = mmcif_dict.get('_atom_site.label_seq_id',    [])
-
-    # Each chain is a consecutive run of identical (entity_id, chain_id).
-    # Within a chain, residues are deduplicated by label_seq_id (first
-    # occurrence wins); atoms with seq_id '.' (solvent) are skipped.
-    chains = []   # list of {'entity_id', 'chain_id', 'residues': OrderedDict}
+    # ── 4. Iterate data rows ──────────────────────────────────────────────────
+    # split() is a fast C-level call; all four target columns (entity_id,
+    # asym_id, comp_id, seq_id) are always unquoted tokens in real mmCIF files.
+    # If a row has a different token count (quoted value with spaces in an
+    # earlier column), we skip it — the residue will appear in another atom row.
+    chains   = []
     prev_key = None
 
-    for entity_id, chain_id, comp_id, seq_id in zip(
-            entity_ids, chain_ids, comp_ids, seq_ids):
+    while i < n:
+        line = lines[i]
+        i += 1
 
+        if not line:
+            continue
+
+        c0 = line[0]
+        if c0 in (' ', '\t'):
+            line = line.lstrip()
+            if not line:
+                continue
+            c0 = line[0]
+
+        if c0 == '#':
+            continue
+
+        # End-of-loop markers: new key, new loop_, new data_ block, stop_
+        if c0 == '_' or line.startswith('loop_') or line.startswith('data_') or line.startswith('stop_'):
+            break
+
+        # Semicolon-delimited multi-line value (essentially never in _atom_site)
+        if c0 == ';':
+            while i < n and not lines[i].startswith(';'):
+                i += 1
+            i += 1
+            continue
+
+        parts = line.split()
+        if len(parts) != ncols:
+            continue
+
+        seq_id = parts[idx_seq]
         if seq_id == '.':
             continue
+
+        entity_id = parts[idx_entity]
+        chain_id  = parts[idx_chain]
+        comp_id   = parts[idx_comp]
 
         key = (entity_id, chain_id)
         if key != prev_key:
             chains.append({
                 'entity_id': entity_id,
                 'chain_id':  chain_id,
-                'residues':  {},   # seq_id -> comp_id, insertion-ordered
+                'residues':  {},
             })
             prev_key = key
 
@@ -84,19 +132,17 @@ def get_sequence(structure):
         if seq_id not in residues:
             residues[seq_id] = comp_id
 
-    result = []
-    for chain in chains:
-        seq = ''.join(
-            _CANONICAL_3TO1.get(comp_id, 'X')
-            for comp_id in chain['residues'].values()
-        )
-        result.append({
+    # ── 5. Convert residues to 1-letter sequences ─────────────────────────────
+    return [
+        {
             'chain_id':  chain['chain_id'],
             'entity_id': chain['entity_id'],
-            'sequence':  seq,
-        })
-
-    return result
+            'sequence':  ''.join(
+                _CANONICAL_3TO1.get(comp, 'X') for comp in chain['residues'].values()
+            ),
+        }
+        for chain in chains
+    ]
 
 
 def chain_token_lengths(structure):
@@ -116,65 +162,107 @@ def chain_token_lengths(structure):
     are grouped by ``auth_seq_id``; if that is also ``'.'`` each atom is
     treated as its own residue.
 
-    Parameters
-    ----------
-    structure : str
-        CIF text for a single structure.
-
-    Returns
-    -------
-    list of dict
-        Each dict has keys:
-          ``chain_id``  — ``label_asym_id`` value
-          ``entity_id`` — ``label_entity_id`` value
-          ``tokens``    — total token count for the chain (int)
-
-    Raises
-    ------
-    ImportError
-        If biopython is not installed.
+    Fast pure-Python implementation; does not require biopython.
     """
+    lines = structure.splitlines()
+    n = len(lines)
+    i = 0
+
+    # ── 1. Find the loop_ that opens the _atom_site category ─────────────────
+    while i < n:
+        if lines[i].strip() == 'loop_':
+            j = i + 1
+            while j < n and not lines[j].strip():
+                j += 1
+            if j < n and lines[j].strip().startswith('_atom_site.'):
+                i = j
+                break
+        i += 1
+    else:
+        return []
+
+    # ── 2. Collect column headers ─────────────────────────────────────────────
+    col_names = []
+    while i < n:
+        stripped = lines[i].strip()
+        if stripped.startswith('_atom_site.'):
+            col_names.append(stripped)
+            i += 1
+        elif not stripped or stripped.startswith('#'):
+            i += 1
+        else:
+            break
+
+    if not col_names:
+        return []
+
+    # ── 3. Locate target column indices (auth_seq_id and type_symbol optional) ─
+    col_map = {name: idx for idx, name in enumerate(col_names)}
     try:
-        from Bio.PDB.MMCIF2Dict import MMCIF2Dict
-    except ImportError:
-        raise ImportError(
-            "biopython is required for chain_token_lengths: pip install biopython"
-        )
-    import io
+        idx_entity = col_map['_atom_site.label_entity_id']
+        idx_chain  = col_map['_atom_site.label_asym_id']
+        idx_comp   = col_map['_atom_site.label_comp_id']
+        idx_seq    = col_map['_atom_site.label_seq_id']
+    except KeyError:
+        return []
 
-    mmcif_dict = MMCIF2Dict(io.StringIO(structure))
+    idx_auth_seq = col_map.get('_atom_site.auth_seq_id')
+    idx_element  = col_map.get('_atom_site.type_symbol')
+    ncols = len(col_names)
 
-    entity_ids   = mmcif_dict.get('_atom_site.label_entity_id', [])
-    chain_ids    = mmcif_dict.get('_atom_site.label_asym_id',   [])
-    comp_ids     = mmcif_dict.get('_atom_site.label_comp_id',   [])
-    seq_ids      = mmcif_dict.get('_atom_site.label_seq_id',    [])
-    auth_seq_ids = mmcif_dict.get('_atom_site.auth_seq_id',     [])
-    elements     = mmcif_dict.get('_atom_site.type_symbol',     [])
+    # ── 4. Iterate data rows ──────────────────────────────────────────────────
+    chains     = []
+    prev_key   = None
+    atom_index = 0
 
-    # Pad auth_seq_ids and elements to the atom count so zip is safe when absent.
-    n = len(entity_ids)
-    if len(auth_seq_ids) < n:
-        auth_seq_ids = auth_seq_ids + ['.'] * (n - len(auth_seq_ids))
-    if len(elements) < n:
-        elements = elements + [''] * (n - len(elements))
+    while i < n:
+        line = lines[i]
+        i += 1
 
-    chains = []
-    prev_chain_key = None
-    atom_index = 0  # fallback unique key when both seq_ids are '.'
+        if not line:
+            continue
 
-    for entity_id, chain_id, comp_id, seq_id, auth_seq_id, element in zip(
-            entity_ids, chain_ids, comp_ids, seq_ids, auth_seq_ids, elements):
+        c0 = line[0]
+        if c0 in (' ', '\t'):
+            line = line.lstrip()
+            if not line:
+                continue
+            c0 = line[0]
 
-        chain_key = (entity_id, chain_id)
-        if chain_key != prev_chain_key:
+        if c0 == '#':
+            continue
+
+        if c0 == '_' or line.startswith('loop_') or line.startswith('data_') or line.startswith('stop_'):
+            break
+
+        if c0 == ';':
+            while i < n and not lines[i].startswith(';'):
+                i += 1
+            i += 1
+            continue
+
+        parts = line.split()
+        if len(parts) != ncols:
+            atom_index += 1
+            continue
+
+        entity_id = parts[idx_entity]
+        chain_id  = parts[idx_chain]
+        comp_id   = parts[idx_comp]
+        seq_id    = parts[idx_seq]
+
+        auth_seq_id = parts[idx_auth_seq] if idx_auth_seq is not None else '.'
+        element     = parts[idx_element]  if idx_element  is not None else ''
+
+        key = (entity_id, chain_id)
+        if key != prev_key:
             chains.append({
                 'entity_id': entity_id,
                 'chain_id':  chain_id,
-                'residues':  {},  # res_key -> {'comp_id': str, 'non_h_atoms': int}
+                'residues':  {},
             })
-            prev_chain_key = chain_key
+            prev_key = key
 
-        # Determine the residue grouping key for this atom.
         if seq_id != '.':
             res_key = seq_id
         elif auth_seq_id != '.':
@@ -191,6 +279,7 @@ def chain_token_lengths(structure):
 
         atom_index += 1
 
+    # ── 5. Sum tokens per chain ───────────────────────────────────────────────
     result = []
     for chain in chains:
         tokens = 0

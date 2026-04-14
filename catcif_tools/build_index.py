@@ -195,7 +195,21 @@ def _consume_gz_member(mm, gz_start):
     while True:
         chunk = bytes(mm[pos:pos + _CHUNK])
         if not chunk:
-            raise ValueError(f"Unexpected end of file inside gzip member at offset {gz_start}")
+            # EOF — this is fine if the gzip member ended exactly at the file
+            # boundary (d.unused_data stays b"" because there are no trailing
+            # bytes). Verify the stream was complete by flushing; zlib raises
+            # zlib.error if the stream was truncated.
+            try:
+                d.flush()
+            except zlib.error:
+                raise ValueError(
+                    f"Unexpected end of file inside gzip member at offset {gz_start}"
+                )
+            if tag is None:
+                raise ValueError(
+                    f"Gzip member at offset {gz_start} does not start with data_"
+                )
+            return tag, pos
 
         out = d.decompress(chunk)
 

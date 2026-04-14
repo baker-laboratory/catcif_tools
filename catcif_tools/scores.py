@@ -15,7 +15,7 @@ as possible) so that score-only scans can stop reading early.
 
 import re
 
-from .structure import get_all_structures
+from .structure import get_all_structures, iter_structure_heads
 
 # Removes a catcif_scores block, including the bracketing # comment lines
 # when they are immediately adjacent to the score lines.
@@ -31,6 +31,9 @@ _SCORES_SCAN_RE = re.compile(
     r'^_catcif_scores\.(\S+)\s+(\S+)',
     re.MULTILINE,
 )
+
+_SCORES_PREFIX     = '_catcif_scores.'
+_SCORES_PREFIX_LEN = len(_SCORES_PREFIX)
 
 
 def write_scores(structure, scores={}):
@@ -84,14 +87,37 @@ def get_scores(structure):
     Parameters
     ----------
     structure : str
-        Full CIF text for a single structure.
+        Full CIF text for a single structure (or just its head).
 
     Returns
     -------
     dict[str, str]
         Mapping of score name to value string.  Empty dict if no scores found.
     """
-    return {m.group(1): m.group(2) for m in _SCORES_SCAN_RE.finditer(structure)}
+    if _SCORES_PREFIX not in structure:
+        return {}
+
+    # Scores are always placed immediately after the data_ line.  Walk forward
+    # from there and stop at the first line that is not blank, '#', or a score
+    # line — that marks the end of the block.  Running the regex only on this
+    # narrow slice avoids scanning the entire (potentially huge) atom_site section.
+    nl = structure.find('\n')
+    if nl == -1:
+        return {}
+
+    pos = nl + 1
+    n = len(structure)
+    while pos < n:
+        c = structure[pos]
+        if c == '_':
+            if structure[pos:pos + _SCORES_PREFIX_LEN] != _SCORES_PREFIX:
+                break
+        elif c not in ('#', '\n', '\r'):
+            break
+        next_nl = structure.find('\n', pos)
+        pos = next_nl + 1 if next_nl != -1 else n
+
+    return {m.group(1): m.group(2) for m in _SCORES_SCAN_RE.finditer(structure, nl, pos)}
 
 
 def parse_score_file(catcif_file, preserve_tags=False):
@@ -116,8 +142,7 @@ def parse_score_file(catcif_file, preserve_tags=False):
     ------
     dict[str, str]
     """
-    for structure, tag in get_all_structures(
-            catcif_file, preserve_tags=preserve_tags, dont_rename_structure=True):
-        scores = get_scores(structure)
+    for head, tag in iter_structure_heads(catcif_file, preserve_tags=preserve_tags):
+        scores = get_scores(head)
         scores['tag'] = tag
         yield scores
