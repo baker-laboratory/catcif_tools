@@ -11,7 +11,7 @@ from signal import signal, SIGPIPE, SIG_DFL
 signal(SIGPIPE, SIG_DFL)
 
 from .catcif_tools import to_catcif_string
-from .conversion import pdb_to_cif
+from .conversion import pdb_to_cif, pdb_to_cif_bio
 from .structure import compress_structure
 
 
@@ -55,7 +55,7 @@ def _read_text(path):
             return f.read()
 
 
-def _process_file(path):
+def _process_file(path, use_biopython=False):
     """
     Read path and return a CIF string suitable for appending to a .catcif file.
 
@@ -72,7 +72,8 @@ def _process_file(path):
     basename = os.path.basename(path)
     for ext in _PDB_EXTS:
         if basename.endswith(ext):
-            content = pdb_to_cif(content, tag)
+            converter = pdb_to_cif_bio if use_biopython else pdb_to_cif
+            content = converter(content, tag)
             return to_catcif_string(content, tag)
 
     return to_catcif_string(content, tag, add_header=True)
@@ -95,6 +96,10 @@ def main():
         '-z', action='store_true',
         help='write gzip-compressed output (applies to .cif/.pdb inputs only; '
              '.catcif files are always passed through as-is)',
+    )
+    parser.add_argument(
+        '-b', action='store_true',
+        help='use biopython for PDB-to-CIF conversion (slower but more complete output)',
     )
     parser.add_argument(
         'files', nargs='*', metavar='FILE',
@@ -128,7 +133,7 @@ def main():
             continue
 
         try:
-            structure = _process_file(path)
+            structure = _process_file(path, use_biopython=opts.b)
         except (ImportError, ValueError) as exc:
             eprint(exc)
             sys.exit(1)

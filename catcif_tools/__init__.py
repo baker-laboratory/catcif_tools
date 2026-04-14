@@ -15,4 +15,4 @@ from .structure import (
 )
 from .scores import get_scores, parse_score_file
 from .biology import chain_token_lengths, get_sequence
-from .conversion import pdb_to_cif
+from .conversion import pdb_to_cif, pdb_to_cif_bio
