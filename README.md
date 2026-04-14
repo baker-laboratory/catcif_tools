@@ -4,8 +4,13 @@ Tools for working with concatenated CIF files (`.catcif`).
 
 ## Motivation
 
-<!-- TODO: describe the motivation for catcif files here -->
+Computational biology often relies on storing thousands to millions of structures. Written as individual
+files, these structures can clog up file systems. Easy-to-use archive formats are needed.
 
+Here we present the catcif file format. It's effectively just catted cif files. If all structures are
+uncompressed, a catcif file is a valid cif file (thanks RCSB for making that one possible).
+
+Now, instead of storing thousands of files from a run, a single catcif file can be stored.
 
 ## The catcif File Format
 
@@ -22,6 +27,12 @@ each member automatically and decompresses on demand.
 **Combining files** is as simple as `cat`:
 ```bash
 cat runs/*/out.catcif > combined.catcif
+```
+
+**Note!** Many tools do not output cif files with the `data_` header set to the name
+of the structure. Solve this with:
+```bash
+catciffromfiles *.cif > combined.catcif
 ```
 
 ### Index files
@@ -59,7 +70,7 @@ member as soon as they find it.
 ```python
 import catcif_tools
 
-# Read one structure by name
+# Read one structure by name (returns a cif string)
 structure = catcif_tools.get_structure("my_design", catcif_file="designs.catcif")
 
 # The same call using the embedded path:tag syntax (no catcif_file argument needed)
