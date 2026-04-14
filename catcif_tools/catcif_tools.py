@@ -2,8 +2,13 @@
 catcif_tools.py — high-level API for building and working with .catcif files.
 """
 
+import re
+
 from .structure import rename_structure, compress_structure
 from .scores import write_scores
+
+# Matches zero or more leading blank lines and # comment lines.
+_LEADING_COMMENTS_RE = re.compile(r'\A(?:#[^\n]*\n|\n)*')
 
 
 def get_tags(index):
@@ -39,7 +44,8 @@ def to_catcif_string(cif_str, tag, scores=None, add_header=False, compress=False
     str or bytes
         Plain CIF text when compress is False; gzip bytes when compress is True.
     """
-    if not cif_str.lstrip().startswith('data_'):
+    cif_str = cif_str[_LEADING_COMMENTS_RE.match(cif_str).end():]
+    if not cif_str.startswith('data_'):
         if not add_header:
             raise ValueError(
                 "CIF string has no data_ block header. "
