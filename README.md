@@ -358,7 +358,7 @@ Return `True` if `tag` is a `path:tag` compound string (contains `.catcif:` or
 
 ---
 
-### Biology (requires `pip install catcif-tools[pdb]`)
+### Biology (requires `pip install catcif_tools[pdb]`)
 
 #### `get_sequence(structure) → list[dict]`
 
@@ -367,6 +367,8 @@ Return the 1-letter amino-acid sequence for each chain in a CIF structure.
 Each dict in the returned list has keys `chain_id`, `entity_id`, and `sequence`.
 Residues outside the canonical 20 amino acids are represented as `X`. Solvent atoms
 (`label_seq_id == '.'`) are skipped.
+
+Requires `pip install catcif_tools[pdb]`.
 
 ```python
 for chain in catcif_tools.get_sequence(structure):
@@ -384,6 +386,8 @@ Token counts follow the AlphaFold/RoseTTAFold convention:
 - Non-standard residue or ligand → number of non-hydrogen atoms in that residue.
 
 Each dict has keys `chain_id`, `entity_id`, and `tokens`.
+
+Requires `pip install catcif_tools[pdb]`.
 
 ```python
 for chain in catcif_tools.chain_token_lengths(structure):
@@ -425,10 +429,10 @@ catcif_tools.catcif_settings.cache_indexes = False   # disable all caching
 ## Installation
 
 ```bash
-pip install catcif-tools
+pip install catcif_tools
 
 # With PDB-to-CIF conversion and sequence/token-length support:
-pip install catcif-tools[pdb]
+pip install catcif_tools[pdb]
 ```
 
 Or install from source:
