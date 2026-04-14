@@ -19,9 +19,14 @@ def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
 
-# Ordered longest-first so .cif.gz is checked before .cif
+_CATCIF_EXTS    = ('.catcif',)
 _SUPPORTED_EXTS = ('.cif.gz', '.cif', '.pdb.gz', '.pdb')
 _PDB_EXTS       = ('.pdb.gz', '.pdb')
+
+
+def _is_catcif(path):
+    basename = os.path.basename(path)
+    return any(basename.endswith(ext) for ext in _CATCIF_EXTS)
 
 
 def _tag_from_path(path):
@@ -36,7 +41,7 @@ def _tag_from_path(path):
             return basename[:-len(ext)]
     raise ValueError(
         f'catciffromfiles: unsupported file type: {path!r}\n'
-        f'  supported extensions: {", ".join(_SUPPORTED_EXTS)}'
+        f'  supported extensions: {", ".join(_CATCIF_EXTS + _SUPPORTED_EXTS)}'
     )
 
 
@@ -76,22 +81,24 @@ def _process_file(path):
 def main():
     parser = argparse.ArgumentParser(
         prog='catciffromfiles',
-        description='Build a .catcif file from individual .cif or .cif.gz files.',
+        description='Build a .catcif file from individual structure files or other .catcif files.',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=textwrap.dedent("""\
             examples:
               catciffromfiles a.cif b.cif.gz > out.catcif
               ls *.cif | catciffromfiles > out.catcif
               ls *.cif | catciffromfiles extra.cif > out.catcif
+              catciffromfiles part1.catcif part2.catcif *.cif > combined.catcif
         """),
     )
     parser.add_argument(
         '-z', action='store_true',
-        help='write gzip-compressed output',
+        help='write gzip-compressed output (applies to .cif/.pdb inputs only; '
+             '.catcif files are always passed through as-is)',
     )
     parser.add_argument(
         'files', nargs='*', metavar='FILE',
-        help='.cif or .cif.gz files to include',
+        help='.cif, .cif.gz, .pdb, .pdb.gz, or .catcif files to include',
     )
     opts = parser.parse_args()
 
@@ -110,6 +117,16 @@ def main():
         sys.exit(1)
 
     for path in all_files:
+        if _is_catcif(path):
+            with open(path, 'rb') as f:
+                while True:
+                    chunk = f.read(65536)
+                    if not chunk:
+                        break
+                    sys.stdout.buffer.write(chunk)
+            sys.stdout.buffer.flush()
+            continue
+
         try:
             structure = _process_file(path)
         except (ImportError, ValueError) as exc:
