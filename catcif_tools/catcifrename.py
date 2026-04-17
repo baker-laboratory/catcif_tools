@@ -70,9 +70,7 @@ def main():
         sys.exit(1)
 
     # Check structure count up front
-    index, f_open, caller_must_close = get_catcif_index(opts.catcif_file)
-    if caller_must_close:
-        f_open.close()
+    index = get_catcif_index(opts.catcif_file)
     n_structures = len(index['index'])
 
     if opts.b:

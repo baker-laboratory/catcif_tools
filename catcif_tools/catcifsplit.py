@@ -57,11 +57,7 @@ def _split_plain(catcif_file, n, out_dir, prefix=''):
 # ---------------------------------------------------------------------------
 
 def _split_shuffle(catcif_file, n, out_dir):
-    index, f_open, caller_must_close = get_catcif_index(catcif_file,
-                                                         instant_cache=True)
-    if caller_must_close:
-        f_open.close()
-
+    index = get_catcif_index(catcif_file, instant_cache=True)
     total = len(index['index'])
     if total == 0:
         return

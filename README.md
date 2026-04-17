@@ -91,7 +91,7 @@ catcif_tools.append_to_catcif_file(
 )
 
 # Read multiple structures; tags carry the file path so no catcif_file arg is needed
-tags = catcif_tools.catcifls("designs.catcif")                      # see full API below
+tags = catcif_tools.get_tags("designs.catcif")                      # see full API below
 path_tags = [f"designs.catcif:{t}" for t in tags[:10]]
 for structure in catcif_tools.get_structures(path_tags):
     scores = catcif_tools.get_scores(structure)

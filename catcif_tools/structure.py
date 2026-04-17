@@ -249,7 +249,7 @@ def iter_structure_heads(catcif_file, preserve_tags=False):
     The file pointer is repositioned to each structure's index offset before
     reading, so partial reads of prior structures do not cause problems.
     """
-    index, f_open, caller_must_close = _get_catcif_index(catcif_file)
+    index, f_open, caller_must_close = _get_catcif_index(catcif_file, return_f=True)
     try:
         orig_tags = index['orig_tags']
         for tag, entry in index['index'].items():
@@ -326,7 +326,7 @@ def get_all_structures(catcif_file, preserve_tags=False, dont_rename_structure=F
         The returned tag is still the canonical deduplicated name unless
         preserve_tags is also True.
     """
-    index, f_open, caller_must_close = _get_catcif_index(catcif_file)
+    index, f_open, caller_must_close = _get_catcif_index(catcif_file, return_f=True)
     try:
         orig_tags = index['orig_tags']
         for tag, entry in index['index'].items():
@@ -378,7 +378,7 @@ def get_structure(tag, catcif_file=None, no_cache=False, instant_cache=False,
     catcif_file = tag_catcif_file or catcif_file
 
     index, f_open, caller_must_close = _get_catcif_index(
-        catcif_file, no_cache=no_cache, instant_cache=instant_cache)
+        catcif_file, no_cache=no_cache, instant_cache=instant_cache, return_f=True)
     try:
         return _get_structure(tag, catcif_file, index, f_open,
                               preserve_tags=preserve_tags,
@@ -431,7 +431,7 @@ def get_structures(tags, catcif_file=None, no_cache=False, instant_cache=False,
 
     actual_catcif = parsed[0][0]
     index, f_open, caller_must_close = _get_catcif_index(
-        actual_catcif, no_cache=no_cache, instant_cache=instant_cache)
+        actual_catcif, no_cache=no_cache, instant_cache=instant_cache, return_f=True)
     try:
         for _, clean_tag in parsed:
             yield _get_structure(clean_tag, actual_catcif, index, f_open,

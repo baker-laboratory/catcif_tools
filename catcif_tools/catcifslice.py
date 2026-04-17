@@ -27,9 +27,7 @@ def _load_index(path, index_cache):
     """Return (original_path, index) for path, loading and caching it if needed."""
     rp = os.path.realpath(path)
     if rp not in index_cache:
-        index, f_open, caller_must_close = get_catcif_index(path, instant_cache=True)
-        if caller_must_close:
-            f_open.close()
+        index = get_catcif_index(path, instant_cache=True)
         index_cache[rp] = (path, index)
     return index_cache[rp]
 

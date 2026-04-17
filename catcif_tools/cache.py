@@ -26,9 +26,9 @@ from .settings import catcif_settings
 catcif_cache = {}
 
 
-def get_catcif_index(catcif_file, no_cache=False, instant_cache=False):
+def get_catcif_index(catcif_file, no_cache=False, instant_cache=False, return_f=False):
     """
-    Return the index, a file object, and a close-responsibility flag.
+    Return the catcif index, optionally with a file object and close flag.
 
     Parameters
     ----------
@@ -36,26 +36,22 @@ def get_catcif_index(catcif_file, no_cache=False, instant_cache=False):
         Path to the .catcif file.
     no_cache : bool
         If True, skip all caching entirely. Always builds index from disk.
-        Caller is always responsible for closing the returned file object.
     instant_cache : bool
         If True, cache the file pointer immediately without waiting for the
         fast/slow access-count thresholds to be reached.
-
-    Returns
-    -------
-    index : dict
-        The catcif index.
-    f_open : file object
-        Open binary file object positioned at the start of catcif_file.
-    caller_must_close : bool
-        True when the caller is responsible for closing f_open.
-        False when the file pointer is owned by the cache.
+    return_f : bool
+        If False (default), return only the index dict; any file opened solely
+        for index-building is closed internally.  If True, return the 3-tuple
+        ``(index, f_open, caller_must_close)`` — the caller is responsible for
+        closing f_open when caller_must_close is True.
     """
     real_path = os.path.realpath(catcif_file)
 
     # ── no_cache: build fresh, skip all caching ───────────────────────────────
     if no_cache:
         index = get_uncached_catcif_index(catcif_file)
+        if not return_f:
+            return index
         return index, open(catcif_file, 'rb'), True
 
     # ── get or build index ─────────────────────────────────────────────────────
@@ -93,7 +89,12 @@ def get_catcif_index(catcif_file, no_cache=False, instant_cache=False):
     if len(catcif_cache) > catcif_settings.max_caches:
         _trim_cache()
 
-    return index, f_open, not cached
+    caller_must_close = not cached
+    if not return_f:
+        if caller_must_close:
+            f_open.close()
+        return index
+    return index, f_open, caller_must_close
 
 
 def _now_ms():

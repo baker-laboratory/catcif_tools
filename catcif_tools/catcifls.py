@@ -32,10 +32,7 @@ def main():
     opts = parser.parse_args()
 
     for path in opts.catcif_files:
-        index, f_open, caller_must_close = get_catcif_index(path)
-        if caller_must_close:
-            f_open.close()
-
+        index = get_catcif_index(path)
         prefix = os.path.realpath(path) + ':' if opts.l else ''
         tags = index['orig_tags'] if opts.g else index['index']
 

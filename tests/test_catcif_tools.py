@@ -330,14 +330,13 @@ class TestCatcifTools:
         assert results[1][0].startswith('data_b\n')
 
     def test_get_tags(self, tmp_path):
-        from catcif_tools.catcif_tools import get_tags
+        from catcif_tools.catcif_tools import get_tags, get_tags_from_index
         from catcif_tools.cache import get_catcif_index
         p = _make_catcif(tmp_path,
             'data_foo\n_entry.id foo\n\ndata_bar\n_entry.id bar\n')
-        index, f, must_close = get_catcif_index(str(p))
-        if must_close:
-            f.close()
-        assert get_tags(index) == ['foo', 'bar']
+        index = get_catcif_index(str(p))
+        assert get_tags_from_index(index) == ['foo', 'bar']
+        assert get_tags(str(p)) == ['foo', 'bar']
 
 
 # ---------------------------------------------------------------------------
@@ -395,9 +394,7 @@ class TestCache:
     def test_get_catcif_index_returns_index(self, tmp_path):
         from catcif_tools.cache import get_catcif_index
         p = _make_catcif(tmp_path, 'data_foo\n_entry.id foo\n')
-        index, f, must_close = get_catcif_index(str(p))
-        if must_close:
-            f.close()
+        index = get_catcif_index(str(p))
         assert 'foo' in index['index']
         assert index['version'] == 2
 
@@ -693,9 +690,9 @@ class TestCatcifsplit:
         monkeypatch.setattr(sys, 'argv', ['catcifsplit', str(p), '2', '-o', str(out)])
         main()
         files = sorted(os.listdir(str(out)))
-        assert files == ['xaa', 'xab', 'xac']
-        assert _data_lines((out / 'xaa').read_text()) == ['data_s0', 'data_s1']
-        assert _data_lines((out / 'xac').read_text()) == ['data_s4']
+        assert files == ['xaa.catcif', 'xab.catcif', 'xac.catcif']
+        assert _data_lines((out / 'xaa.catcif').read_text()) == ['data_s0', 'data_s1']
+        assert _data_lines((out / 'xac.catcif').read_text()) == ['data_s4']
 
     def test_shuffle_split(self, tmp_path, monkeypatch):
         from catcif_tools.catcifsplit import main
@@ -706,10 +703,10 @@ class TestCatcifsplit:
         monkeypatch.setattr(sys, 'argv',
                             ['catcifsplit', '-s', str(p), '2', '-o', str(out)])
         main()
-        assert sorted(os.listdir(str(out))) == ['xaa', 'xab', 'xac']
-        assert _data_lines((out / 'xaa').read_text()) == ['data_s0', 'data_s3']
-        assert _data_lines((out / 'xab').read_text()) == ['data_s1', 'data_s4']
-        assert _data_lines((out / 'xac').read_text()) == ['data_s2', 'data_s5']
+        assert sorted(os.listdir(str(out))) == ['xaa.catcif', 'xab.catcif', 'xac.catcif']
+        assert _data_lines((out / 'xaa.catcif').read_text()) == ['data_s0', 'data_s3']
+        assert _data_lines((out / 'xab.catcif').read_text()) == ['data_s1', 'data_s4']
+        assert _data_lines((out / 'xac.catcif').read_text()) == ['data_s2', 'data_s5']
 
 
 # ---------------------------------------------------------------------------
@@ -873,9 +870,9 @@ class TestConversion:
             return real_import(name, *args, **kwargs)
 
         monkeypatch.setattr(builtins, '__import__', mock_import)
-        from catcif_tools.conversion import pdb_to_cif
+        from catcif_tools.conversion import pdb_to_cif_bio
         with pytest.raises(ImportError, match='biopython'):
-            pdb_to_cif(self._PDB, 'test')
+            pdb_to_cif_bio(self._PDB, 'test')
 
 
 class TestCatcifsplitBio:

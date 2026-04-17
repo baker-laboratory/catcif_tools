@@ -3,6 +3,7 @@ from .cache import clear_cache, get_catcif_index
 from .path import is_catcif_path_tag, split_catcif_tag
 from .catcif_tools import (
     get_tags,
+    get_tags_from_index,
     to_catcif_string,
     append_to_catcif_file,
     append_to_catcif_file_open,

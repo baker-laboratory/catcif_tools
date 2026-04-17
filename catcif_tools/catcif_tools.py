@@ -11,9 +11,15 @@ from .scores import write_scores
 _LEADING_COMMENTS_RE = re.compile(r'\A(?:#[^\n]*\n|\n)*')
 
 
-def get_tags(index):
+def get_tags_from_index(index):
     """Return the ordered list of canonical tags from a catcif index."""
     return list(index["index"].keys())
+
+
+def get_tags(path):
+    """Return the ordered list of canonical tags in a .catcif file."""
+    from .cache import get_catcif_index
+    return get_tags_from_index(get_catcif_index(path))
 
 
 def to_catcif_string(cif_str, tag, scores=None, add_header=False, compress=False):
