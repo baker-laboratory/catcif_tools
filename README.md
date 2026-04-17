@@ -328,22 +328,34 @@ for row in catcif_tools.parse_score_file("designs.catcif"):
 
 ### Tags and paths
 
-#### `get_tags(index) → list[str]`
+#### `get_tags(path) → list[str]`
 
-Return the ordered list of canonical tags from a catcif index dict.
+Return the ordered list of canonical tags in a `.catcif` file.
 
 ```python
-index, _, _ = catcif_tools.get_catcif_index("designs.catcif")
-tags = catcif_tools.get_tags(index)
+tags = catcif_tools.get_tags("designs.catcif")
 ```
 
 ---
 
-#### `get_catcif_index(catcif_file, no_cache=False, instant_cache=False) → tuple[dict, file, bool]`
+#### `get_tags_from_index(index) → list[str]`
 
-Return `(index, f_open, caller_must_close)` for a catcif file. The index maps each
-canonical tag to its byte offset. The returned file object is positioned at the
-beginning of the file. If `caller_must_close` is `True`, close `f_open` when done.
+Return the ordered list of canonical tags from an already-built catcif index dict.
+
+```python
+index = catcif_tools.get_catcif_index("designs.catcif")
+tags = catcif_tools.get_tags_from_index(index)
+```
+
+---
+
+#### `get_catcif_index(catcif_file, no_cache=False, instant_cache=False, return_f=False) → dict | tuple`
+
+Return the index for a catcif file. The index maps each canonical tag to its byte
+offset. By default (`return_f=False`) only the index dict is returned and any file
+opened for index-building is closed internally. Pass `return_f=True` to get the full
+`(index, f_open, caller_must_close)` 3-tuple when you need to seek and read structures
+directly.
 
 Normally you do not need this directly — use `get_structure` or `get_all_structures`
 instead.
