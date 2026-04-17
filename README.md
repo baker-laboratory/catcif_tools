@@ -440,10 +440,7 @@ catcif_tools.catcif_settings.cache_indexes = False   # disable all caching
 ## Installation
 
 ```bash
-pip install catcif_tools
-
-# With PDB-to-CIF conversion and sequence/token-length support:
-pip install catcif_tools[pdb]
+pip install catcif-tools
 ```
 
 Or install from source:
