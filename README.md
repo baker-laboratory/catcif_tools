@@ -12,6 +12,29 @@ uncompressed, a catcif file is a valid cif file (thanks RCSB for making that one
 
 Now, instead of storing thousands of files from a run, a single catcif file can be stored.
 
+## Installation
+
+```bash
+pip install catcif-tools
+```
+
+Or install from source:
+
+```bash
+git clone https://github.com/bcov77/catcif_tools
+cd catcif_tools
+pip install -e .
+```
+
+## Pymol plugin
+
+Add this to your .pymolrc:
+```bash
+run /path/to/catcif_tools/utils/pymol_load_catcif.py
+```
+
+`load /path/to/file.catcif:tag` works as well as loading entire catcif files by path or drag/drop
+
 ## The catcif File Format
 
 A `.catcif` file is a plain concatenation of standard CIF structures. This works
@@ -449,16 +472,3 @@ catcif_tools.catcif_settings.cache_indexes = False   # disable all caching
 ```
 
 
-## Installation
-
-```bash
-pip install catcif-tools
-```
-
-Or install from source:
-
-```bash
-git clone https://github.com/bcov77/catcif_tools
-cd catcif_tools
-pip install -e .
-```
