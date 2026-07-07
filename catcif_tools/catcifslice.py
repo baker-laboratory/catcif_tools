@@ -75,6 +75,11 @@ def _build_parser(prog, description, epilog):
         help='write gzip-compressed output',
     )
     parser.add_argument(
+        '-s', action='store_true',
+        help='slice mode: if no tags are given, do nothing instead of erroring '
+             '(no effect if tags are given)',
+    )
+    parser.add_argument(
         'positional', nargs='*', metavar='FILE_OR_TAG',
         help='catcif file followed by tags, or just tags (with embedded paths)',
     )
@@ -209,6 +214,8 @@ def main():
     opts = parser.parse_args()
     resolved = _collect_and_resolve(opts, prog='catcifslice')
     if not resolved:
+        if opts.s:
+            sys.exit(0)
         parser.print_help(sys.stderr)
         sys.exit(1)
     if opts.z:

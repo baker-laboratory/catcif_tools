@@ -43,6 +43,8 @@ def main():
 
     resolved = _collect_and_resolve(opts, prog='catcifextract')
     if resolved is None:
+        if opts.s:
+            sys.exit(0)
         # No tags given — extract everything from the specified catcif file(s).
         if opts.m:
             catcif_files = opts.positional

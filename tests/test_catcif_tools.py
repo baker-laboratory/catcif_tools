@@ -483,6 +483,28 @@ class TestCatcifslice:
         with pytest.raises(SystemExit):
             main()
 
+    def test_no_tags_with_s_flag_exits_cleanly(self, tmp_path, monkeypatch, capsys):
+        from catcif_tools.catcifslice import main
+        p = _make_catcif(tmp_path, 'data_foo\n_entry.id foo\n')
+        monkeypatch.setattr(sys, 'argv', ['catcifslice', '-s', str(p)])
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 0
+        captured = capsys.readouterr()
+        assert captured.out == ''
+        assert captured.err == ''
+
+    def test_s_flag_has_no_effect_with_tags(self, tmp_path, monkeypatch, capsys):
+        from catcif_tools.catcifslice import main
+        p = _make_catcif(tmp_path,
+            'data_foo\n_entry.id foo\n_cell.length_a 1.0\n'
+            'data_bar\n_entry.id bar\n_cell.length_a 2.0\n')
+        monkeypatch.setattr(sys, 'argv', ['catcifslice', '-s', str(p), 'foo'])
+        main()
+        out = capsys.readouterr().out
+        assert 'data_foo' in out
+        assert 'data_bar' not in out
+
 
 # ---------------------------------------------------------------------------
 # TestCatcifextract
@@ -511,6 +533,29 @@ class TestCatcifextract:
         main()
         data = (out / 'foo.cif.gz').read_bytes()
         assert data[:2] == b'\x1f\x8b'
+
+    def test_no_tags_extracts_everything_by_default(self, tmp_path, monkeypatch):
+        from catcif_tools.catcifextract import main
+        p = _make_catcif(tmp_path,
+            'data_foo\n_entry.id foo\n_cell.length_a 1.0\n'
+            'data_bar\n_entry.id bar\n_cell.length_a 2.0\n')
+        out = tmp_path / 'out'
+        monkeypatch.setattr(sys, 'argv', ['catcifextract', '-o', str(out), str(p)])
+        main()
+        assert (out / 'foo.cif').read_text().startswith('data_foo')
+        assert (out / 'bar.cif').read_text().startswith('data_bar')
+
+    def test_no_tags_with_s_flag_writes_nothing(self, tmp_path, monkeypatch):
+        from catcif_tools.catcifextract import main
+        p = _make_catcif(tmp_path,
+            'data_foo\n_entry.id foo\n_cell.length_a 1.0\n'
+            'data_bar\n_entry.id bar\n_cell.length_a 2.0\n')
+        out = tmp_path / 'out'
+        monkeypatch.setattr(sys, 'argv', ['catcifextract', '-s', '-o', str(out), str(p)])
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 0
+        assert list(out.iterdir()) == []
 
 
 # ---------------------------------------------------------------------------
